@@ -82,36 +82,42 @@ static void pop_audio(struct SDL_PrivateAudioData* pdata)
 {
 	SDL_mutexP(pdata->ringbuffer_lock);
 
-	size_t first_chunk = pdata->ringbuffer_used;
-	size_t second_chunk = 0;
-
-	if (pdata->ringbuffer_readpos + first_chunk > pdata->ringbuffer_size)
+	if (pdata->ringbuffer_used)
 	{
-		first_chunk = pdata->ringbuffer_size - pdata->ringbuffer_readpos;
-		second_chunk = pdata->ringbuffer_used - first_chunk;
+		size_t first_chunk = pdata->ringbuffer_used;
+		size_t second_chunk = 0;
+
+		if (pdata->ringbuffer_readpos + first_chunk > pdata->ringbuffer_size)
+		{
+			first_chunk = pdata->ringbuffer_size - pdata->ringbuffer_readpos;
+			second_chunk = pdata->ringbuffer_used - first_chunk;
+		}
+
+		first_chunk/=4;
+		second_chunk/=4;
+
+		// try to submit the first chunk
+		size_t submitted=libretro_audio_sample_batch_cb((int16_t*)(pdata->ringbuffer + pdata->ringbuffer_readpos), first_chunk );
+		if (submitted == first_chunk && second_chunk>0)
+		{
+			submitted+=libretro_audio_sample_batch_cb((int16_t*)pdata->ringbuffer, second_chunk );
+		}
+
+		submitted*=4;
+
+		pdata->ringbuffer_readpos = (pdata->ringbuffer_readpos + submitted) % pdata->ringbuffer_size;
+		pdata->ringbuffer_used-=submitted;
 	}
-
-	first_chunk/=4;
-	second_chunk/=4;
-
-	// try to submit the first chunk
-	size_t submitted=libretro_audio_sample_batch_cb((int16_t*)(pdata->ringbuffer + pdata->ringbuffer_readpos), first_chunk );
-	if (submitted == first_chunk && second_chunk>0)
-	{
-		submitted+=libretro_audio_sample_batch_cb((int16_t*)pdata->ringbuffer, second_chunk );
-	}
-
-	submitted*=4;
-
-	pdata->ringbuffer_readpos = (pdata->ringbuffer_readpos + submitted) % pdata->ringbuffer_size;
-	pdata->ringbuffer_used-=submitted;
 
 	SDL_mutexV(pdata->ringbuffer_lock);
 }
 
 void libretro_upload_audio()
 {
-	pop_audio(current_audio->hidden);	
+	if (current_audio && current_audio->hidden)
+	{
+		pop_audio(current_audio->hidden);
+	}
 }
 
 /* Audio driver bootstrap functions */
