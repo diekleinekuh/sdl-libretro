@@ -32,6 +32,8 @@
 void LIBRETRO_PumpMouse(_THIS);
 void LIBRETRO_PumpKeyboard(_THIS);
 
+extern void libretro_upload_audio();
+
 void LIBRETRO_PumpEvents(_THIS)
 {
        // input_poll_cb();
@@ -46,6 +48,8 @@ void LIBRETRO_PumpEvents(_THIS)
         LIBRETRO_PumpKeyboard(this);
 
 	last  = SDL_GetTicks();
+
+    libretro_upload_audio(); //trigger audio upload in libretro from the main thread
 }
 
 void LIBRETRO_InitOSKeymap(_THIS)

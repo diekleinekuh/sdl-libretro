@@ -32,11 +32,7 @@
 #include "../SDL_audio_c.h"
 #include "../SDL_audiodev_c.h"
 #include "SDL_LIBRETROaudio.h"
-
 #include "../../video/libretro/libretro.h"
-extern retro_audio_sample_t audio_cb;
-//extern void libretro_audio_cb(int16_t left, int16_t right);
-#define libretro_audio_cb  audio_cb
 
 /* The tag name used by DUMMY audio */
 #define LIBRETRO_DRIVER_NAME         "LIBRETRO"
@@ -47,6 +43,78 @@ static void LIBRETRO_WaitAudio(_THIS);
 static void LIBRETRO_PlayAudio(_THIS);
 static Uint8 *LIBRETRO_GetAudioBuf(_THIS);
 static void LIBRETRO_CloseAudio(_THIS);
+
+extern SDL_AudioDevice *current_audio;
+
+static retro_audio_sample_batch_t audio_batch_cb;
+void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { audio_batch_cb = cb; }
+
+/* background audio buffer*/
+static void push_audio(struct SDL_PrivateAudioData* pdata)
+{
+	SDL_mutexP(pdata->ringbuffer_lock);
+
+    size_t first_chunk = pdata->mixlen;
+    size_t second_chunk = 0;	
+
+    if (pdata->ringbuffer_writepos + pdata->mixlen > pdata->ringbuffer_size)
+    {
+        first_chunk = pdata->ringbuffer_size - pdata->ringbuffer_writepos;
+        second_chunk = pdata->mixlen - first_chunk;
+    }
+
+    memcpy(pdata->ringbuffer + pdata->ringbuffer_writepos, pdata->mixbuf, first_chunk);
+    memcpy(pdata->ringbuffer, pdata->mixbuf+first_chunk, second_chunk);
+    pdata->ringbuffer_writepos = (pdata->ringbuffer_writepos + pdata->mixlen) % pdata->ringbuffer_size;
+
+    pdata->ringbuffer_used += pdata->mixlen;
+
+    // check if read buffer was overwritten 
+    if (pdata->ringbuffer_used>pdata->ringbuffer_size)
+    {
+        // correct overwritten read position so it points to oldest data again
+        pdata->ringbuffer_readpos = (pdata->ringbuffer_readpos + pdata->ringbuffer_used - pdata->ringbuffer_size) % pdata->ringbuffer_size;
+        pdata->ringbuffer_used = pdata->ringbuffer_size;
+    }
+
+	SDL_mutexV(pdata->ringbuffer_lock);
+}
+
+static void pop_audio(struct SDL_PrivateAudioData* pdata)
+{
+	SDL_mutexP(pdata->ringbuffer_lock);
+
+	size_t first_chunk = pdata->ringbuffer_used;
+	size_t second_chunk = 0;
+
+	if (pdata->ringbuffer_readpos + first_chunk > pdata->ringbuffer_size)
+	{
+		first_chunk = pdata->ringbuffer_size - pdata->ringbuffer_readpos;
+		second_chunk = pdata->ringbuffer_used - first_chunk;
+	}
+
+	first_chunk/=4;
+	second_chunk/=4;
+
+	// try to submit the first chunk
+	size_t submitted=audio_batch_cb((int16_t*)(pdata->ringbuffer + pdata->ringbuffer_readpos), first_chunk );
+	if (submitted == first_chunk && second_chunk>0)
+	{
+		submitted+=audio_batch_cb((int16_t*)pdata->ringbuffer, second_chunk );
+	}
+
+	submitted*=4;
+
+	pdata->ringbuffer_readpos = (pdata->ringbuffer_readpos + submitted) % pdata->ringbuffer_size;
+	pdata->ringbuffer_used-=submitted;
+
+	SDL_mutexV(pdata->ringbuffer_lock);
+}
+
+void libretro_upload_audio()
+{
+	pop_audio(current_audio->hidden);	
+}
 
 /* Audio driver bootstrap functions */
 static int LIBRETRO_Available(void)
@@ -85,7 +153,7 @@ static SDL_AudioDevice *LIBRETRO_CreateDevice(int devindex)
 		}
 		return(0);
 	}
-	SDL_memset(this->hidden, 0, (sizeof *this->hidden));
+	SDL_memset(this->hidden, 0, (sizeof *this->hidden));	
 
 	/* Set the function pointers */
 	this->OpenAudio = LIBRETRO_OpenAudio;
@@ -115,19 +183,8 @@ static void LIBRETRO_WaitAudio(_THIS)
 }
 
 static void LIBRETRO_PlayAudio(_THIS)
-{
-	/* no-op...this is a null driver. */
-	SDL_AudioSpec *spec = &this->spec;
-	int i;
-
-	Sint16 *ptr=(Sint16*)this->hidden->mixbuf;
-
-	for(i=0;i< spec->size/spec->channels/2;i++){
-		libretro_audio_cb(*ptr++,*ptr++);
-	}
-
-//printf("sz:%d c:%d freq:%d fmt:%d\n",spec->size,spec->channels,spec->freq,spec->format);
-
+{	
+	push_audio(this->hidden);
 }
 
 static Uint8 *LIBRETRO_GetAudioBuf(_THIS)
@@ -140,6 +197,18 @@ static void LIBRETRO_CloseAudio(_THIS)
 	if ( this->hidden->mixbuf != NULL ) {
 		SDL_FreeAudioMem(this->hidden->mixbuf);
 		this->hidden->mixbuf = NULL;
+	}
+
+	if (this->hidden->ringbuffer_lock)
+	{
+		SDL_DestroyMutex(this->hidden->ringbuffer_lock);
+		this->hidden->ringbuffer_lock = NULL;
+	}
+
+	if (this->hidden->ringbuffer)
+	{
+		SDL_free(this->hidden->ringbuffer);
+		this->hidden->ringbuffer = NULL;
 	}
 }
 
@@ -168,6 +237,10 @@ static int LIBRETRO_OpenAudio(_THIS, SDL_AudioSpec *spec)
 	this->hidden->initial_calls = 2;
 	this->hidden->write_delay =
 	               (Uint32) ((((float) spec->size) / bytes_per_sec) * 1000.0f);
+
+	this->hidden->ringbuffer_lock = SDL_CreateMutex();
+	this->hidden->ringbuffer_size = this->hidden->mixlen*2;
+	this->hidden->ringbuffer = SDL_malloc(this->hidden->ringbuffer_size);
 
 	/* We're ready to rock and roll. :-) */
 	return(0);

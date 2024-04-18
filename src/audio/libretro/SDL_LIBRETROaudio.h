@@ -25,6 +25,7 @@
 #define _SDL_libretroaudio_h
 
 #include "../SDL_sysaudio.h"
+#include "SDL_mutex.h"
 
 /* Hidden "this" pointer for the video functions */
 #define _THIS	SDL_AudioDevice *this
@@ -35,6 +36,13 @@ struct SDL_PrivateAudioData {
 	Uint32 mixlen;
 	Uint32 write_delay;
 	Uint32 initial_calls;
+
+    SDL_mutex* ringbuffer_lock;
+    Uint8 *ringbuffer;
+    Uint32 ringbuffer_size;
+    size_t ringbuffer_writepos;
+    size_t ringbuffer_readpos;
+    size_t ringbuffer_used;
 };
 
 #endif /* _SDL_dummyaudio_h */
