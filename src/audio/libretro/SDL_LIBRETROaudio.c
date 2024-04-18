@@ -45,9 +45,7 @@ static Uint8 *LIBRETRO_GetAudioBuf(_THIS);
 static void LIBRETRO_CloseAudio(_THIS);
 
 extern SDL_AudioDevice *current_audio;
-
-static retro_audio_sample_batch_t audio_batch_cb;
-void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { audio_batch_cb = cb; }
+extern size_t libretro_audio_sample_batch_cb(const int16_t* data, size_t frames);
 
 /* background audio buffer*/
 static void push_audio(struct SDL_PrivateAudioData* pdata)
@@ -97,10 +95,10 @@ static void pop_audio(struct SDL_PrivateAudioData* pdata)
 	second_chunk/=4;
 
 	// try to submit the first chunk
-	size_t submitted=audio_batch_cb((int16_t*)(pdata->ringbuffer + pdata->ringbuffer_readpos), first_chunk );
+	size_t submitted=libretro_audio_sample_batch_cb((int16_t*)(pdata->ringbuffer + pdata->ringbuffer_readpos), first_chunk );
 	if (submitted == first_chunk && second_chunk>0)
 	{
-		submitted+=audio_batch_cb((int16_t*)pdata->ringbuffer, second_chunk );
+		submitted+=libretro_audio_sample_batch_cb((int16_t*)pdata->ringbuffer, second_chunk );
 	}
 
 	submitted*=4;
