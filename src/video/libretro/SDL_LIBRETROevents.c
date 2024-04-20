@@ -36,20 +36,15 @@ extern void libretro_upload_audio();
 
 void LIBRETRO_PumpEvents(_THIS)
 {
-       // input_poll_cb();
-
 	static Uint32 last=0;
-	Uint32 now;
-
-	now  = SDL_GetTicks()-last;
-	if(now<10)return;
-
-	LIBRETRO_PumpMouse(this);
+    const Uint32 now=SDL_GetTicks();
+	
+	//if(now-last>10)
+    {
+        LIBRETRO_PumpMouse(this);
         LIBRETRO_PumpKeyboard(this);
-
-	last  = SDL_GetTicks();
-
-    libretro_upload_audio(); //trigger audio upload in libretro from the main thread
+        last  = now;
+    }    
 }
 
 void LIBRETRO_InitOSKeymap(_THIS)
