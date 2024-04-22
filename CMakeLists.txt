@@ -11,13 +11,11 @@ set (SDL-src
 
     src/audio/SDL_audio.c
     src/audio/SDL_audiocvt.c
-    src/audio/SDL_audiodev.c
     src/audio/SDL_mixer.c
     src/audio/SDL_mixer_MMX.c
     src/audio/SDL_mixer_MMX_VC.c
     src/audio/SDL_mixer_m68k.c
     src/audio/SDL_wave.c
-    src/audio/libretro/SDL_LIBRETROaudio.c
 
     src/cdrom/SDL_cdrom.c
 
@@ -48,28 +46,28 @@ set (SDL-src
     src/video/SDL_RLEaccel.c
     src/video/SDL_blit.c
     src/video/SDL_blit_0.c
-    src/video/SDL_blit_1.c 
-    src/video/SDL_blit_A.c 
-    src/video/SDL_blit_N.c 
-    src/video/SDL_bmp.c 
-    src/video/SDL_cursor.c 
-    src/video/SDL_gamma.c 
-    src/video/SDL_pixels.c 
-    src/video/SDL_stretch.c 
-    src/video/SDL_surface.c 
-    src/video/SDL_video.c 
-    src/video/SDL_yuv.c 
-    src/video/SDL_yuv_mmx.c 
+    src/video/SDL_blit_1.c
+    src/video/SDL_blit_A.c
+    src/video/SDL_blit_N.c
+    src/video/SDL_bmp.c
+    src/video/SDL_cursor.c
+    src/video/SDL_gamma.c
+    src/video/SDL_pixels.c
+    src/video/SDL_stretch.c
+    src/video/SDL_surface.c
+    src/video/SDL_video.c
+    src/video/SDL_yuv.c
+    src/video/SDL_yuv_mmx.c
     src/video/SDL_yuv_sw.c
-    src/video/libretro/SDL_LIBRETROevents.c 
-    src/video/libretro/SDL_LIBRETROkeyboard.c 
-    src/video/libretro/SDL_LIBRETROmouse.c 
-    src/video/libretro/SDL_LIBRETROvideo.c     
+    src/video/libretro/SDL_LIBRETROevents.c
+    src/video/libretro/SDL_LIBRETROkeyboard.c
+    src/video/libretro/SDL_LIBRETROmouse.c
+    src/video/libretro/SDL_LIBRETROvideo.c
 
     src/joystick/SDL_joystick.c
-    src/joystick/libretro/SDL_sysjoystick.c 
+    src/joystick/libretro/SDL_sysjoystick.c
 
-    src/loadso/dummy/SDL_sysloadso.c 
+    src/loadso/dummy/SDL_sysloadso.c
 )
 
 add_compile_definitions(__LIBRETRO__ LSB_FIRST )
